@@ -8,8 +8,10 @@ import anthropic
 
 from buddy_bot.bot import send_response
 from buddy_bot.config import Settings
+from buddy_bot.graphiti import GraphitiClient
 from buddy_bot.history import HistoryStore
 from buddy_bot.prompt import build_system_prompt, build_user_prompt
+from buddy_bot.retry import retry_with_backoff
 from buddy_bot.tools.registry import ToolRegistry
 from buddy_bot.typing_indicator import TypingIndicator
 
@@ -21,6 +23,17 @@ OVERLOADED_DELAY = 30
 MAX_TOOL_ROUNDS = 20
 
 
+def _is_retriable_api_error(exc: Exception) -> bool:
+    """Classify whether a Claude API error is retriable."""
+    if isinstance(exc, anthropic.RateLimitError):
+        return True
+    if isinstance(exc, anthropic.InternalServerError):
+        return True
+    if isinstance(exc, anthropic.APIStatusError) and exc.status_code == 529:
+        return True
+    return False
+
+
 class MessageProcessor:
     def __init__(
         self,
@@ -28,11 +41,13 @@ class MessageProcessor:
         history_store: HistoryStore,
         tool_registry: ToolRegistry,
         bot,
+        graphiti: GraphitiClient | None = None,
     ) -> None:
         self._settings = settings
         self._history = history_store
         self._registry = tool_registry
         self._bot = bot
+        self._graphiti = graphiti
         self._client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         self._locks: dict[str, asyncio.Lock] = {}
 
@@ -67,11 +82,15 @@ class MessageProcessor:
             system_prompt = build_system_prompt(now_str)
             user_content = build_user_prompt(turns, events, fallback)
 
-            # 4. Call Claude API with tool loop
+            # 4. Soft health check on Graphiti
+            if self._graphiti and not await self._graphiti.health_check():
+                logger.warning("Graphiti unavailable — proceeding without memory context")
+
+            # 5. Call Claude API with tool loop
             messages = [{"role": "user", "content": user_content}]
             response_text = await self._call_with_tools(system_prompt, messages)
 
-            # 5. Save conversation turn
+            # 6. Save conversation turn
             user_text = "\n".join(e.get("text", "") for e in events)
             elapsed_ms = int(
                 (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
@@ -79,7 +98,7 @@ class MessageProcessor:
             await self._history.save_turn(chat_id, user_text, response_text, elapsed_ms)
             await self._history.clear_fallback(chat_id)
 
-            # 6. Send response
+            # 7. Send response
             await indicator.stop()
             await send_response(self._bot, chat_id, response_text)
 
@@ -136,44 +155,18 @@ class MessageProcessor:
         return "\n".join(text_parts) if text_parts else "(max tool rounds reached)"
 
     async def _api_call(self, system_prompt, messages, tools):
-        """Make a single API call with retry logic."""
-        for attempt, delay in enumerate(RETRY_DELAYS):
-            try:
-                return await self._client.messages.create(
-                    model=self._settings.model,
-                    max_tokens=self._settings.max_tokens,
-                    temperature=self._settings.temperature,
-                    system=system_prompt,
-                    messages=messages,
-                    tools=tools,
-                )
-            except anthropic.RateLimitError:
-                if attempt < len(RETRY_DELAYS) - 1:
-                    logger.warning("Rate limited, retrying in %ds", delay)
-                    await asyncio.sleep(delay)
-                else:
-                    raise
-            except anthropic.InternalServerError:
-                if attempt == 0:
-                    logger.warning("Server error, retrying in 2s")
-                    await asyncio.sleep(2)
-                else:
-                    raise
-            except anthropic.APIStatusError as e:
-                if e.status_code == 529:
-                    logger.warning("Overloaded, retrying in %ds", OVERLOADED_DELAY)
-                    await asyncio.sleep(OVERLOADED_DELAY)
-                else:
-                    raise
-
-        # Final attempt without retry
-        return await self._client.messages.create(
+        """Make a single API call with retry logic using retry_with_backoff."""
+        return await retry_with_backoff(
+            self._client.messages.create,
             model=self._settings.model,
             max_tokens=self._settings.max_tokens,
             temperature=self._settings.temperature,
             system=system_prompt,
             messages=messages,
             tools=tools,
+            max_retries=len(RETRY_DELAYS) - 1,
+            backoff_base=RETRY_DELAYS[0],
+            retriable=_is_retriable_api_error,
         )
 
     async def close(self) -> None:

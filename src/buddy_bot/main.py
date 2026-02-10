@@ -132,6 +132,7 @@ class BuddyBot:
             self._history,
             self._registry,
             self._app.bot,
+            graphiti=self._graphiti,
         )
 
         # Set up signal handlers
