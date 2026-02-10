@@ -1,0 +1,57 @@
+services:
+  buddy-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: buddy-bot
+    restart: unless-stopped
+    volumes:
+      - bot_data:/data
+      - ./credentials:/app/credentials:ro
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_ALLOWED_CHAT_IDS=${TELEGRAM_ALLOWED_CHAT_IDS}
+      - GRAPHITI_URL=http://graphiti-mcp:8000
+      - MODEL=${MODEL:-claude-sonnet-4-5-20250929}
+      - HISTORY_TURNS=${HISTORY_TURNS:-20}
+      - HISTORY_DB=/data/history.db
+      - DEBOUNCE_DELAY=${DEBOUNCE_DELAY:-5}
+      - USER_TIMEZONE=${USER_TIMEZONE:-UTC}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+    networks:
+      - bot-net
+    depends_on:
+      graphiti-mcp:
+        condition: service_healthy
+
+  graphiti-mcp:
+    image: zepai/knowledge-graph-mcp:latest
+    container_name: graphiti-mcp
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - graphiti_data:/data
+      - ./config/graphiti-config.yaml:/app/mcp/config/config.yaml:ro
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - GRAPHITI_TELEMETRY_ENABLED=false
+      - SEMAPHORE_LIMIT=10
+    networks:
+      - bot-net
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  bot-net:
+    driver: bridge
+
+volumes:
+  bot_data:
+  graphiti_data:
