@@ -4,6 +4,8 @@ import asyncio
 import logging
 import signal
 
+import httpx
+
 from buddy_bot.buffer import MessageBuffer
 from buddy_bot.config import get_settings
 from buddy_bot.graphiti import GraphitiClient
@@ -41,6 +43,7 @@ class BuddyBot:
         )
         self._graphiti = GraphitiClient(self._settings.graphiti_url)
         self._todo = TodoStore(self._settings.history_db)
+        self._http_client = httpx.AsyncClient()
         self._chat_id_ref: dict[str, str] = {}
         self._registry = ToolRegistry()
         self._register_tools()
@@ -132,6 +135,8 @@ class BuddyBot:
             self._settings.telegram_token,
             self._settings.telegram_allowed_chat_ids,
             self.on_message,
+            http_client=self._http_client,
+            settings=self._settings,
         )
 
         # Create processor (needs the bot instance)
@@ -171,6 +176,7 @@ class BuddyBot:
         # Close clients
         if hasattr(self, "_processor"):
             await self._processor.close()
+        await self._http_client.aclose()
         await self._graphiti.close()
         self._todo.close()
         self._history.close()
