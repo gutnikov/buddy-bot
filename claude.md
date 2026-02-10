@@ -13,7 +13,8 @@ The bot receives messages via Telegram, batches them with a trailing-edge deboun
 - **python-telegram-bot** — Telegram integration (polling mode)
 - **Graphiti** (zepai/knowledge-graph-mcp) — Long-term memory via MCP JSON-RPC over HTTP
 - **SQLite** — Conversation history, fallback context, todo list, OAuth tokens
-- **httpx** — Async HTTP client for Graphiti, Tavily, Perplexity
+- **Yandex SpeechKit** — Voice message transcription (STT)
+- **httpx** — Async HTTP client for Graphiti, Tavily, Perplexity, SpeechKit
 - **Pydantic** — Settings validation from environment variables
 - **Docker Compose** — Deployment (buddy-bot + graphiti-mcp)
 
@@ -23,7 +24,8 @@ The bot receives messages via Telegram, batches them with a trailing-edge deboun
 src/buddy_bot/
 ├── main.py              # BuddyBot class — wires components, processing loop
 ├── config.py            # Pydantic Settings from env vars, cached singleton
-├── bot.py               # Telegram handlers, auth, message splitting, 👀 reaction
+├── bot.py               # Telegram handlers, auth, voice transcription, message splitting, 👀 reaction
+├── speechkit.py         # Yandex SpeechKit STT client (voice → text)
 ├── buffer.py            # Trailing-edge debounce (asyncio.Event-based)
 ├── processor.py         # Prompt → Claude API → tool loop → response pipeline
 ├── prompt.py            # 5-section prompt builder
@@ -109,7 +111,7 @@ Docker tests (`test_docker.py`) auto-skip when Docker CLI is unavailable (inside
 - **No Python on host** — Tests always run inside Docker containers. The host has Docker but no Python/pip.
 - **Tests mount volume** — Source is baked into the image, but tests are mounted at runtime (`-v ./tests:/app/tests`) for fast iteration without rebuild.
 - **Rebuild after source changes** — `docker build -t buddy-bot-test .` is needed when source files change (tests are volume-mounted so test changes don't need a rebuild).
-- **All mocks, no real APIs** — Tests never call real external services. Anthropic, Telegram, Graphiti, Tavily, Perplexity are all mocked.
+- **All mocks, no real APIs** — Tests never call real external services. Anthropic, Telegram, Graphiti, Tavily, Perplexity, SpeechKit are all mocked.
 - **AsyncMock for async, MagicMock for sync** — Use `MagicMock` for sync response objects (e.g., httpx.Response.json() is sync), `AsyncMock` for async functions.
 - **Settings in tests** — Use the `REQUIRED_SETTINGS` dict pattern with `Settings(**REQUIRED_SETTINGS)`. Override specific fields by spreading: `Settings(**{**REQUIRED_SETTINGS, "field": "value"})`.
 
@@ -121,3 +123,6 @@ Docker tests (`test_docker.py`) auto-skip when Docker CLI is unavailable (inside
 - `send_response` in `bot.py` splits messages >4096 chars at paragraph boundaries before sending.
 - Tool handlers return JSON strings, never dicts. The registry's `dispatch` method handles JSON serialization for non-string returns.
 - Google Calendar/Gmail tools take a `get_credentials` async callable (not credentials directly) — credentials are fetched fresh on each tool invocation.
+- Voice support is opt-in — when `SPEECHKIT_API_KEY` is empty, the `filters.VOICE` handler is not registered and voice messages are silently ignored.
+- `speechkit.recognize()` returns `str | None`: non-empty string = success, empty string = silence/noise, `None` = error. The caller in `bot.py` maps each case to the appropriate user reply.
+- Telegram voice messages are OGG/Opus — sent directly to SpeechKit with no format conversion needed.

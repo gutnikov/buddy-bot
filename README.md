@@ -11,6 +11,7 @@ Buddy Bot remembers past conversations, manages your calendar and email, keeps a
 - **Todo list** — Built-in task management with priorities, due dates, and per-chat isolation
 - **Google Calendar** — List, create, and delete events via Google Calendar API
 - **Gmail** — List, read, and send emails with reply threading support
+- **Voice messages** — Transcribes Telegram voice messages via Yandex SpeechKit STT, then processes as text
 - **Web search** — Tavily for link discovery, Perplexity Sonar for synthesized research answers
 - **Message batching** — Trailing-edge debounce groups rapid messages into a single prompt
 - **Tool use loop** — Claude autonomously calls tools (memory retrieval, search, calendar, etc.) and iterates up to 20 rounds
@@ -41,7 +42,8 @@ Telegram ──► bot.py (auth, extract, react 👀)
 | Module | Purpose |
 |--------|---------|
 | `config.py` | Pydantic settings from environment variables |
-| `bot.py` | Telegram handlers, authorization, message splitting |
+| `bot.py` | Telegram handlers, authorization, voice transcription, message splitting |
+| `speechkit.py` | Yandex SpeechKit STT client for voice message transcription |
 | `buffer.py` | Async trailing-edge debounce for message batching |
 | `history.py` | SQLite conversation turn storage with per-turn truncation |
 | `todo.py` | SQLite todo/task store with CRUD operations |
@@ -57,7 +59,7 @@ Telegram ──► bot.py (auth, extract, react 👀)
 - Docker and Docker Compose
 - API keys: Anthropic, OpenAI, Voyage AI
 - Telegram bot token (via [@BotFather](https://t.me/BotFather))
-- Optional: Tavily API key, Perplexity API key, Google OAuth credentials
+- Optional: Tavily API key, Perplexity API key, Google OAuth credentials, Yandex SpeechKit API key
 
 ## Quick Start
 
@@ -103,6 +105,10 @@ All configuration is via environment variables. See `.env.example` for the full 
 | `USER_TIMEZONE` | `UTC` | Timezone for `get_current_time` tool |
 | `TAVILY_API_KEY` | _(empty)_ | Enables web search |
 | `PERPLEXITY_API_KEY` | _(empty)_ | Enables Perplexity search |
+| `SPEECHKIT_API_KEY` | _(empty)_ | Yandex SpeechKit API key (enables voice messages) |
+| `YANDEX_FOLDER_ID` | _(empty)_ | Yandex Cloud folder ID for SpeechKit billing |
+| `SPEECHKIT_LANG` | `ru-RU` | Speech recognition language |
+| `MAX_VOICE_DURATION` | `30` | Maximum voice message duration in seconds |
 | `LOG_LEVEL` | `INFO` | Logging level |
 
 ## Google OAuth Setup (Calendar & Gmail)
