@@ -27,6 +27,7 @@ class Settings(BaseModel):
     user_timezone: str = "UTC"
     graphiti_url: str = "http://graphiti-mcp:8000"
     tavily_api_key: str = ""
+    perplexity_api_key: str = ""
     google_credentials_path: str = "/app/credentials/google_credentials.json"
     telegram_mode: Literal["polling", "webhook"] = "polling"
     webhook_url: str = ""

@@ -21,6 +21,7 @@ services:
       - DEBOUNCE_DELAY=${DEBOUNCE_DELAY:-5}
       - USER_TIMEZONE=${USER_TIMEZONE:-UTC}
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - GOOGLE_CREDENTIALS_PATH=/app/credentials/client_secret.json
     healthcheck:

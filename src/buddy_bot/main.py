@@ -11,6 +11,7 @@ from buddy_bot.history import HistoryStore
 from buddy_bot.processor import MessageProcessor
 from buddy_bot.todo import TodoStore
 from buddy_bot.tools.memory import register_memory_tools
+from buddy_bot.tools.perplexity import register_perplexity_tool
 from buddy_bot.tools.registry import ToolRegistry
 from buddy_bot.tools.search import register_search_tool
 from buddy_bot.tools.time import register_time_tool
@@ -48,6 +49,7 @@ class BuddyBot:
         register_memory_tools(self._registry, self._graphiti)
         register_time_tool(self._registry, self._settings.user_timezone)
         register_search_tool(self._registry, self._settings.tavily_api_key)
+        register_perplexity_tool(self._registry, self._settings.perplexity_api_key)
         register_todo_tools(self._registry, self._todo, self._chat_id_ref)
 
     def _get_buffer(self, chat_id: str) -> MessageBuffer:
