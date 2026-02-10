@@ -1,0 +1,14 @@
+llm:
+  provider: openai
+  model: gpt-4.1-mini
+  providers:
+    openai:
+      api_key: ${OPENAI_API_KEY}
+
+embedder:
+  provider: voyage
+  model: voyage-4
+  dimensions: 1024
+  providers:
+    voyage:
+      api_key: ${VOYAGE_API_KEY}
