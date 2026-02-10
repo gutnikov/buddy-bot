@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from buddy_bot.bot import extract_event, is_authorized, split_message, send_response
+from buddy_bot.bot import extract_event, is_authorized, react_eyes, split_message, send_response
 
 
 def test_authorized_chat():
@@ -89,3 +89,42 @@ async def test_send_response_single_message():
     bot = AsyncMock()
     await send_response(bot, "123", "short")
     bot.send_message.assert_called_once()
+
+
+async def test_react_eyes_sends_reaction():
+    """Reaction is sent on authorized message."""
+    bot = AsyncMock()
+    await react_eyes(bot, chat_id=123, message_id=42)
+    bot.set_message_reaction.assert_called_once()
+    call_kwargs = bot.set_message_reaction.call_args.kwargs
+    assert call_kwargs["chat_id"] == 123
+    assert call_kwargs["message_id"] == 42
+
+
+async def test_react_eyes_failure_is_caught():
+    """Reaction failure is caught and doesn't propagate."""
+    bot = AsyncMock()
+    bot.set_message_reaction.side_effect = RuntimeError("Telegram API error")
+    # Should not raise
+    await react_eyes(bot, chat_id=123, message_id=42)
+
+
+async def test_no_reaction_on_unauthorized_message():
+    """Unauthorized messages don't get reactions (handled by handle_message flow)."""
+    from buddy_bot.bot import create_application
+
+    on_message = AsyncMock()
+    app = create_application("fake-token", [123], on_message)
+
+    # Simulate unauthorized update
+    update = _make_update(chat_id=999)
+    context = MagicMock()
+    context.bot = AsyncMock()
+
+    # Get the handler and call it directly
+    handler = app.handlers[0][0]
+    await handler.callback(update, context)
+
+    # No reaction sent, no message forwarded
+    context.bot.set_message_reaction.assert_not_called()
+    on_message.assert_not_called()
