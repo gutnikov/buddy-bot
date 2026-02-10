@@ -3,10 +3,12 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import anthropic
 import pytest
 
 from buddy_bot.config import Settings
-from buddy_bot.processor import MessageProcessor
+from buddy_bot.processor import MessageProcessor, _is_retriable_api_error
+from buddy_bot.retry import MaxRetriesExceeded
 
 
 REQUIRED_SETTINGS = {
@@ -140,3 +142,123 @@ async def test_serial_execution(processor):
 
     # Should be start-end-start-end (serialized), not start-start-end-end
     assert call_order == ["start", "end", "start", "end"]
+
+
+def test_is_retriable_rate_limit():
+    exc = anthropic.RateLimitError.__new__(anthropic.RateLimitError)
+    assert _is_retriable_api_error(exc) is True
+
+
+def test_is_retriable_internal_server():
+    exc = anthropic.InternalServerError.__new__(anthropic.InternalServerError)
+    assert _is_retriable_api_error(exc) is True
+
+
+def test_is_retriable_overloaded_529():
+    exc = MagicMock(spec=anthropic.APIStatusError)
+    exc.status_code = 529
+    # Need isinstance check to work
+    exc.__class__ = anthropic.APIStatusError
+    assert _is_retriable_api_error(exc) is True
+
+
+def test_is_not_retriable_bad_request():
+    assert _is_retriable_api_error(ValueError("bad")) is False
+
+
+async def test_graphiti_health_check_called(processor):
+    """Graphiti health check runs before API call."""
+    proc, history, registry, bot = processor
+    graphiti = AsyncMock()
+    graphiti.health_check.return_value = True
+    proc._graphiti = graphiti
+    events = [{"text": "hi", "from": "alex", "timestamp": "t"}]
+
+    with patch.object(proc, "_client") as mock_client:
+        mock_client.messages.create = AsyncMock(return_value=_make_text_response("ok"))
+        await proc.process("123", events)
+
+    graphiti.health_check.assert_called_once()
+
+
+async def test_graphiti_unavailable_proceeds(processor):
+    """Processing continues when Graphiti is unhealthy."""
+    proc, history, registry, bot = processor
+    graphiti = AsyncMock()
+    graphiti.health_check.return_value = False
+    proc._graphiti = graphiti
+    events = [{"text": "hi", "from": "alex", "timestamp": "t"}]
+
+    with patch.object(proc, "_client") as mock_client:
+        mock_client.messages.create = AsyncMock(return_value=_make_text_response("ok"))
+        await proc.process("123", events)
+
+    # Should still complete successfully
+    bot.send_message.assert_called()
+    history.save_turn.assert_called_once()
+
+
+async def test_api_call_retries_on_rate_limit(processor):
+    """Rate limit errors trigger retries via retry_with_backoff."""
+    proc, history, registry, bot = processor
+    events = [{"text": "hi", "from": "alex", "timestamp": "t"}]
+
+    rate_exc = anthropic.RateLimitError.__new__(anthropic.RateLimitError)
+
+    with patch.object(proc, "_client") as mock_client:
+        mock_client.messages.create = AsyncMock(
+            side_effect=[rate_exc, _make_text_response("ok")]
+        )
+        with patch("buddy_bot.retry.asyncio.sleep", new_callable=AsyncMock):
+            await proc.process("123", events)
+
+    bot.send_message.assert_called()
+
+
+async def test_api_call_retries_on_5xx(processor):
+    """5xx errors trigger retries."""
+    proc, history, registry, bot = processor
+    events = [{"text": "hi", "from": "alex", "timestamp": "t"}]
+
+    server_exc = anthropic.InternalServerError.__new__(anthropic.InternalServerError)
+
+    with patch.object(proc, "_client") as mock_client:
+        mock_client.messages.create = AsyncMock(
+            side_effect=[server_exc, _make_text_response("ok")]
+        )
+        with patch("buddy_bot.retry.asyncio.sleep", new_callable=AsyncMock):
+            await proc.process("123", events)
+
+    bot.send_message.assert_called()
+
+
+async def test_fallback_context_round_trip():
+    """Fallback saved on error, loaded on next call, cleared on success."""
+    settings = Settings(**REQUIRED_SETTINGS)
+    history = AsyncMock()
+    history.get_recent_turns.return_value = []
+    # First call: no fallback
+    history.get_fallback.side_effect = [None, "Processing failed for messages: ['hello']"]
+    registry = AsyncMock()
+    registry.get_tool_definitions.return_value = []
+    bot = AsyncMock()
+    proc = MessageProcessor(settings, history, registry, bot)
+
+    events = [{"text": "hello", "from": "alex", "timestamp": "t"}]
+
+    # First call fails — fallback saved
+    with patch.object(proc, "_client") as mock_client:
+        mock_client.messages.create = AsyncMock(side_effect=RuntimeError("fail"))
+        with pytest.raises(RuntimeError):
+            await proc.process("123", events)
+
+    history.save_fallback.assert_called_once()
+
+    # Second call succeeds — fallback loaded and cleared
+    history.save_fallback.reset_mock()
+    with patch.object(proc, "_client") as mock_client:
+        mock_client.messages.create = AsyncMock(return_value=_make_text_response("ok"))
+        await proc.process("123", events)
+
+    history.get_fallback.assert_called_with("123")
+    history.clear_fallback.assert_called_with("123")
