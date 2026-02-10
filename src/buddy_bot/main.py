@@ -9,10 +9,12 @@ from buddy_bot.config import get_settings
 from buddy_bot.graphiti import GraphitiClient
 from buddy_bot.history import HistoryStore
 from buddy_bot.processor import MessageProcessor
+from buddy_bot.todo import TodoStore
 from buddy_bot.tools.memory import register_memory_tools
 from buddy_bot.tools.registry import ToolRegistry
 from buddy_bot.tools.search import register_search_tool
 from buddy_bot.tools.time import register_time_tool
+from buddy_bot.tools.todo import register_todo_tools
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,8 @@ class BuddyBot:
             max_chars=self._settings.history_max_chars,
         )
         self._graphiti = GraphitiClient(self._settings.graphiti_url)
+        self._todo = TodoStore(self._settings.history_db)
+        self._chat_id_ref: dict[str, str] = {}
         self._registry = ToolRegistry()
         self._register_tools()
 
@@ -44,6 +48,7 @@ class BuddyBot:
         register_memory_tools(self._registry, self._graphiti)
         register_time_tool(self._registry, self._settings.user_timezone)
         register_search_tool(self._registry, self._settings.tavily_api_key)
+        register_todo_tools(self._registry, self._todo, self._chat_id_ref)
 
     def _get_buffer(self, chat_id: str) -> MessageBuffer:
         if chat_id not in self._buffers:
@@ -75,6 +80,7 @@ class BuddyBot:
                 break
 
             try:
+                self._chat_id_ref["chat_id"] = chat_id
                 await self._processor.process(chat_id, events)
                 consecutive_failures = 0
             except Exception:
@@ -164,6 +170,7 @@ class BuddyBot:
         if hasattr(self, "_processor"):
             await self._processor.close()
         await self._graphiti.close()
+        self._todo.close()
         self._history.close()
 
         logger.info("Shutdown complete")
