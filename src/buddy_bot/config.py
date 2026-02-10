@@ -28,6 +28,10 @@ class Settings(BaseModel):
     graphiti_url: str = "http://graphiti-mcp:8000"
     tavily_api_key: str = ""
     perplexity_api_key: str = ""
+    speechkit_api_key: str = ""
+    yandex_folder_id: str = ""
+    speechkit_lang: str = "ru-RU"
+    max_voice_duration: int = 30
     google_credentials_path: str = "/app/credentials/google_credentials.json"
     telegram_mode: Literal["polling", "webhook"] = "polling"
     webhook_url: str = ""
