@@ -12,6 +12,8 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_ALLOWED_CHAT_IDS=${TELEGRAM_ALLOWED_CHAT_IDS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
       - GRAPHITI_URL=http://graphiti-mcp:8000
       - MODEL=${MODEL:-claude-sonnet-4-5-20250929}
       - HISTORY_TURNS=${HISTORY_TURNS:-20}
@@ -19,6 +21,14 @@ services:
       - DEBOUNCE_DELAY=${DEBOUNCE_DELAY:-5}
       - USER_TIMEZONE=${USER_TIMEZONE:-UTC}
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - GOOGLE_CREDENTIALS_PATH=/app/credentials/client_secret.json
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import os, signal; os.kill(1, 0)\" || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - bot-net
     depends_on:
