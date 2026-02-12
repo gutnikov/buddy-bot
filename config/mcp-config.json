@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "buddy-bot-tools": {
+      "command": "python",
+      "args": ["-m", "buddy_bot.mcp_server"]
+    },
+    "graphiti": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://graphiti-mcp:8000/mcp/"]
+    }
+  }
+}

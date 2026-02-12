@@ -10,16 +10,17 @@ from pydantic import BaseModel, field_validator, model_validator
 
 class Settings(BaseModel):
     # Required
-    anthropic_api_key: str
     telegram_token: str
     telegram_allowed_chat_ids: list[int]
     openai_api_key: str
     voyage_api_key: str
 
+    # Claude CLI settings
+    claude_model: str = "claude-sonnet-4-5-20250929"
+    mcp_config_path: str = "/app/config/mcp-config.json"
+    claude_timeout: int = 120
+
     # Optional with defaults
-    model: str = "claude-sonnet-4-5-20250929"
-    max_tokens: int = 4096
-    temperature: float = 0.7
     history_turns: int = 20
     history_max_chars: int = 500
     history_db: str = "/data/history.db"

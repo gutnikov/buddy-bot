@@ -9,7 +9,6 @@ from buddy_bot.bot import create_application, extract_voice_event
 from buddy_bot.config import Settings
 
 REQUIRED_SETTINGS = {
-    "anthropic_api_key": "sk-test",
     "telegram_token": "tok",
     "telegram_allowed_chat_ids": [123],
     "openai_api_key": "sk-test",

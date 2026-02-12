@@ -8,16 +8,8 @@ import httpx
 
 from buddy_bot.buffer import MessageBuffer
 from buddy_bot.config import get_settings
-from buddy_bot.graphiti import GraphitiClient
+from buddy_bot.executor import ClaudeExecutor
 from buddy_bot.history import HistoryStore
-from buddy_bot.processor import MessageProcessor
-from buddy_bot.todo import TodoStore
-from buddy_bot.tools.memory import register_memory_tools
-from buddy_bot.tools.perplexity import register_perplexity_tool
-from buddy_bot.tools.registry import ToolRegistry
-from buddy_bot.tools.search import register_search_tool
-from buddy_bot.tools.time import register_time_tool
-from buddy_bot.tools.todo import register_todo_tools
 
 logger = logging.getLogger(__name__)
 
@@ -41,19 +33,7 @@ class BuddyBot:
             self._settings.history_db,
             max_chars=self._settings.history_max_chars,
         )
-        self._graphiti = GraphitiClient(self._settings.graphiti_url)
-        self._todo = TodoStore(self._settings.history_db)
         self._http_client = httpx.AsyncClient()
-        self._chat_id_ref: dict[str, str] = {}
-        self._registry = ToolRegistry()
-        self._register_tools()
-
-    def _register_tools(self) -> None:
-        register_memory_tools(self._registry, self._graphiti)
-        register_time_tool(self._registry, self._settings.user_timezone)
-        register_search_tool(self._registry, self._settings.tavily_api_key)
-        register_perplexity_tool(self._registry, self._settings.perplexity_api_key)
-        register_todo_tools(self._registry, self._todo, self._chat_id_ref)
 
     def _get_buffer(self, chat_id: str) -> MessageBuffer:
         if chat_id not in self._buffers:
@@ -85,8 +65,7 @@ class BuddyBot:
                 break
 
             try:
-                self._chat_id_ref["chat_id"] = chat_id
-                await self._processor.process(chat_id, events)
+                await self._executor.process(chat_id, events)
                 consecutive_failures = 0
             except Exception:
                 consecutive_failures += 1
@@ -122,12 +101,6 @@ class BuddyBot:
         """Start the bot."""
         logger.info("Buddy Bot starting...")
 
-        # Health check Graphiti
-        if await self._graphiti.health_check():
-            logger.info("Graphiti is healthy")
-        else:
-            logger.warning("Graphiti is not reachable — proceeding without memory")
-
         # Create Telegram application
         from buddy_bot.bot import create_application
 
@@ -139,13 +112,11 @@ class BuddyBot:
             settings=self._settings,
         )
 
-        # Create processor (needs the bot instance)
-        self._processor = MessageProcessor(
+        # Create executor (needs the bot instance)
+        self._executor = ClaudeExecutor(
             self._settings,
             self._history,
-            self._registry,
             self._app.bot,
-            graphiti=self._graphiti,
         )
 
         # Set up signal handlers
@@ -174,11 +145,9 @@ class BuddyBot:
             await self._app.shutdown()
 
         # Close clients
-        if hasattr(self, "_processor"):
-            await self._processor.close()
+        if hasattr(self, "_executor"):
+            await self._executor.close()
         await self._http_client.aclose()
-        await self._graphiti.close()
-        self._todo.close()
         self._history.close()
 
         logger.info("Shutdown complete")

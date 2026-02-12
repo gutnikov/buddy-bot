@@ -9,7 +9,6 @@ from buddy_bot.config import Settings
 
 
 REQUIRED_SETTINGS = {
-    "anthropic_api_key": "sk-test",
     "telegram_token": "tok",
     "telegram_allowed_chat_ids": [123],
     "openai_api_key": "sk-test",
@@ -27,9 +26,7 @@ def test_buddy_bot_initialization(mock_get_settings, tmp_path):
 
     bot = BuddyBot()
     assert bot._settings is settings
-    assert bot._registry is not None
     assert bot._history is not None
-    assert bot._graphiti is not None
 
 
 @patch("buddy_bot.main.get_settings")
@@ -40,7 +37,7 @@ async def test_on_message_creates_buffer(mock_get_settings, tmp_path):
     from buddy_bot.main import BuddyBot
 
     bot = BuddyBot()
-    bot._processor = AsyncMock()
+    bot._executor = AsyncMock()
 
     event = {"text": "hello", "chat_id": "123", "from": "alex", "timestamp": "t"}
 
@@ -60,7 +57,7 @@ async def test_shutdown_cleans_up(mock_get_settings, tmp_path):
     from buddy_bot.main import BuddyBot
 
     bot = BuddyBot()
-    bot._processor = AsyncMock()
+    bot._executor = AsyncMock()
     bot._app = MagicMock()
     bot._app.updater.stop = AsyncMock()
     bot._app.stop = AsyncMock()
@@ -69,7 +66,7 @@ async def test_shutdown_cleans_up(mock_get_settings, tmp_path):
     await bot.shutdown()
 
     assert bot._shutdown_event.is_set()
-    bot._processor.close.assert_called_once()
+    bot._executor.close.assert_called_once()
     bot._app.updater.stop.assert_called_once()
 
 
@@ -82,7 +79,7 @@ async def test_processing_loop_requeues_on_failure(mock_get_settings, tmp_path):
     from buddy_bot.main import BuddyBot
 
     bot = BuddyBot()
-    bot._processor = AsyncMock()
+    bot._executor = AsyncMock()
     bot._app = MagicMock()
     bot._app.bot = AsyncMock()
 
@@ -94,7 +91,7 @@ async def test_processing_loop_requeues_on_failure(mock_get_settings, tmp_path):
         if call_count == 1:
             raise RuntimeError("transient failure")
 
-    bot._processor.process = mock_process
+    bot._executor.process = mock_process
 
     buf = bot._get_buffer("123")
     buf.add({"text": "hello", "chat_id": "123", "from": "alex", "timestamp": "t"})
@@ -116,8 +113,8 @@ async def test_processing_loop_drops_after_3_failures(mock_get_settings, tmp_pat
     from buddy_bot.main import BuddyBot
 
     bot = BuddyBot()
-    bot._processor = AsyncMock()
-    bot._processor.process = AsyncMock(side_effect=RuntimeError("persistent failure"))
+    bot._executor = AsyncMock()
+    bot._executor.process = AsyncMock(side_effect=RuntimeError("persistent failure"))
     bot._app = MagicMock()
     bot._app.bot = AsyncMock()
 

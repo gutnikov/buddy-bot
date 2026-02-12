@@ -7,7 +7,6 @@ from buddy_bot.config import Settings, get_settings
 
 
 REQUIRED_ENV = {
-    "ANTHROPIC_API_KEY": "sk-ant-test",
     "TELEGRAM_TOKEN": "7123456789:AAH-test",
     "TELEGRAM_ALLOWED_CHAT_IDS": "123456789",
     "OPENAI_API_KEY": "sk-test",
@@ -17,7 +16,6 @@ REQUIRED_ENV = {
 
 def test_load_required_variables():
     settings = Settings(**{k.lower(): v for k, v in REQUIRED_ENV.items()})
-    assert settings.anthropic_api_key == "sk-ant-test"
     assert settings.telegram_token == "7123456789:AAH-test"
     assert settings.telegram_allowed_chat_ids == [123456789]
     assert settings.openai_api_key == "sk-test"
@@ -26,9 +24,9 @@ def test_load_required_variables():
 
 def test_default_values():
     settings = Settings(**{k.lower(): v for k, v in REQUIRED_ENV.items()})
-    assert settings.model == "claude-sonnet-4-5-20250929"
-    assert settings.max_tokens == 4096
-    assert settings.temperature == 0.7
+    assert settings.claude_model == "claude-sonnet-4-5-20250929"
+    assert settings.mcp_config_path == "/app/config/mcp-config.json"
+    assert settings.claude_timeout == 120
     assert settings.history_turns == 20
     assert settings.history_max_chars == 500
     assert settings.history_db == "/data/history.db"
@@ -61,7 +59,6 @@ def test_parse_chat_ids_with_spaces():
 def test_missing_required_variable():
     with pytest.raises(ValidationError):
         Settings(
-            anthropic_api_key="test",
             telegram_token="test",
             # telegram_allowed_chat_ids missing
             openai_api_key="test",
@@ -118,7 +115,7 @@ def test_get_settings_from_env(monkeypatch):
         monkeypatch.setenv(k, v)
     get_settings.cache_clear()
     settings = get_settings()
-    assert settings.anthropic_api_key == "sk-ant-test"
+    assert settings.telegram_token == "7123456789:AAH-test"
     assert settings.telegram_allowed_chat_ids == [123456789]
     get_settings.cache_clear()
 
@@ -131,3 +128,19 @@ def test_get_settings_singleton(monkeypatch):
     s2 = get_settings()
     assert s1 is s2
     get_settings.cache_clear()
+
+
+def test_claude_model_override():
+    settings = Settings(
+        **{k.lower(): v for k, v in REQUIRED_ENV.items()},
+        claude_model="claude-opus-4-6",
+    )
+    assert settings.claude_model == "claude-opus-4-6"
+
+
+def test_claude_timeout_override():
+    settings = Settings(
+        **{k.lower(): v for k, v in REQUIRED_ENV.items()},
+        claude_timeout=300,
+    )
+    assert settings.claude_timeout == 300
