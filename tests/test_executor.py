@@ -141,9 +141,8 @@ async def test_process_failure_saves_fallback(components):
 
     mock_proc = _make_mock_process(b"", returncode=1, stderr_data=b"CLI error")
 
-    with patch("buddy_bot.executor.asyncio.create_subprocess_exec", return_value=mock_proc):
-        with pytest.raises(RuntimeError):
-            await executor.process("123", events)
+    with patch("buddy_bot.executor.asyncio.create_subprocess_exec", return_value=mock_proc), pytest.raises(RuntimeError):
+        await executor.process("123", events)
 
     # Fallback should be saved
     row = history._conn.execute(
@@ -178,9 +177,8 @@ async def test_timeout_kills_process(components):
     proc.wait = AsyncMock(return_value=-9)
     proc.kill = MagicMock()
 
-    with patch("buddy_bot.executor.asyncio.create_subprocess_exec", return_value=proc):
-        with pytest.raises(RuntimeError, match="timed out"):
-            await executor.process("123", events)
+    with patch("buddy_bot.executor.asyncio.create_subprocess_exec", return_value=proc), pytest.raises(RuntimeError, match="timed out"):
+        await executor.process("123", events)
 
 
 async def test_build_command(components):

@@ -1,12 +1,8 @@
 """Tests for buddy_bot.main module."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from buddy_bot.config import Settings
-
 
 REQUIRED_SETTINGS = {
     "telegram_token": "tok",
@@ -121,8 +117,7 @@ async def test_processing_loop_drops_after_3_failures(mock_get_settings, tmp_pat
     buf = bot._get_buffer("456")
     buf.add({"text": "hello", "chat_id": "456", "from": "alex", "timestamp": "t"})
 
-    with patch("buddy_bot.main.asyncio.sleep", new_callable=AsyncMock):
-        with patch("buddy_bot.bot.send_response", new_callable=AsyncMock) as mock_send:
+    with patch("buddy_bot.main.asyncio.sleep", new_callable=AsyncMock), patch("buddy_bot.bot.send_response", new_callable=AsyncMock) as mock_send:
             await bot._processing_loop("456")
 
             # User should be notified about the failure

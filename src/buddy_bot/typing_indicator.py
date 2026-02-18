@@ -1,6 +1,7 @@
 """Async Telegram 'typing...' action loop."""
 
 import asyncio
+import contextlib
 import logging
 
 from telegram.constants import ChatAction
@@ -38,10 +39,8 @@ class TypingIndicator:
     async def stop(self) -> None:
         if self._task and not self._task.done():
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
             self._task = None
 
     async def __aenter__(self) -> "TypingIndicator":

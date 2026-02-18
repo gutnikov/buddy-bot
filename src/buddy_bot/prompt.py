@@ -1,7 +1,7 @@
 """Prompt assembly — builds a single prompt string for `claude -p`."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from buddy_bot.history import Turn

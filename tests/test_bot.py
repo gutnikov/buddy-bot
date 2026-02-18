@@ -3,9 +3,7 @@
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
-from buddy_bot.bot import extract_event, is_authorized, react_eyes, split_message, send_response
+from buddy_bot.bot import extract_event, is_authorized, react_eyes, send_response, split_message
 
 
 def test_authorized_chat():

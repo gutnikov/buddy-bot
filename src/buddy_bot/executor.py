@@ -129,11 +129,11 @@ class ClaudeExecutor:
                 self._read_stream(proc, chat_id, indicator, raw_lines),
                 timeout=self._settings.claude_timeout,
             )
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
             logger.error("Claude CLI timed out after %ds", self._settings.claude_timeout)
             proc.kill()
             await proc.wait()
-            raise RuntimeError(f"Claude CLI timed out after {self._settings.claude_timeout}s")
+            raise RuntimeError(f"Claude CLI timed out after {self._settings.claude_timeout}s") from exc
 
         returncode = await proc.wait()
         if returncode != 0:

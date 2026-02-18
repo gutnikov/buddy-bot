@@ -3,8 +3,6 @@
 import asyncio
 from unittest.mock import AsyncMock
 
-import pytest
-
 from buddy_bot.typing_indicator import TypingIndicator
 
 

@@ -22,5 +22,8 @@ jobs:
       - name: Install dependencies
         run: pip install --no-cache-dir -e ".[dev]"
 
+      - name: Lint
+        run: ruff check src/ tests/
+
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short -m "not docker"

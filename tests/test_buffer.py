@@ -2,8 +2,6 @@
 
 import asyncio
 
-import pytest
-
 from buddy_bot.buffer import MessageBuffer
 
 

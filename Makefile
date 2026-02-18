@@ -1,4 +1,4 @@
-.PHONY: test build up down render-env deploy
+.PHONY: test build up down render-env deploy setup-hooks
 
 SECRETS_REPO ?= /home/deploy/work/secrets/secrets
 ENV ?= production
@@ -19,3 +19,6 @@ down:
 	docker compose down
 
 deploy: render-env up ## Render secrets and start services
+
+setup-hooks: ## Install git hooks
+	git config core.hooksPath .githooks

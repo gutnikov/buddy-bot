@@ -5,7 +5,6 @@ from pydantic import ValidationError
 
 from buddy_bot.config import Settings, get_settings
 
-
 REQUIRED_ENV = {
     "TELEGRAM_TOKEN": "7123456789:AAH-test",
     "TELEGRAM_ALLOWED_CHAT_IDS": "123456789",

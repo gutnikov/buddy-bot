@@ -12,10 +12,13 @@ import subprocess
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("docker") is None,
-    reason="Docker CLI not available (likely running inside container)",
-)
+pytestmark = [
+    pytest.mark.docker,
+    pytest.mark.skipif(
+        shutil.which("docker") is None,
+        reason="Docker CLI not available (likely running inside container)",
+    ),
+]
 
 
 def _run(cmd: str, timeout: int = 60) -> subprocess.CompletedProcess:
@@ -35,10 +38,7 @@ def test_image_size_under_500mb():
     result = _run("docker images buddy-bot-test --format '{{.Size}}'")
     size_str = result.stdout.strip()
     # Parse size — could be "389MB" or "0.39GB"
-    if "GB" in size_str:
-        size_mb = float(size_str.replace("GB", "")) * 1024
-    else:
-        size_mb = float(size_str.replace("MB", ""))
+    size_mb = float(size_str.replace("GB", "")) * 1024 if "GB" in size_str else float(size_str.replace("MB", ""))
     assert size_mb < 500, f"Image is {size_mb}MB, expected < 500MB"
 
 

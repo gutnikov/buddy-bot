@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Pre-commit hook: lint staged Python files with ruff
+
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$')
+if [ -z "$STAGED_PY" ]; then
+    exit 0
+fi
+
+if ! command -v ruff &> /dev/null; then
+    echo "ruff not found — install with: pip install ruff"
+    exit 1
+fi
+
+echo "Running ruff on staged files..."
+echo "$STAGED_PY" | xargs ruff check
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "Lint errors found. Fix with: ruff check --fix src/ tests/"
+    exit 1
+fi
