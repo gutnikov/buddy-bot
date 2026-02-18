@@ -7,22 +7,6 @@ TOOL_PROGRESS: dict[str, str] = {
     "search_memory_facts": "Searching memory...",
     "search_nodes": "Looking up entities...",
     "add_memory": "Saving to memory...",
-    # Todo tools
-    "todo_add": "Adding task...",
-    "todo_list": "Checking tasks...",
-    "todo_complete": "Completing task...",
-    "todo_delete": "Removing task...",
-    # Calendar tools
-    "calendar_list_events": "Checking calendar...",
-    "calendar_create_event": "Creating event...",
-    "calendar_delete_event": "Removing event...",
-    # Email tools
-    "email_list_messages": "Checking email...",
-    "email_read_message": "Reading email...",
-    "email_send_message": "Sending email...",
-    # Search tools
-    "web_search": "Searching the web...",
-    "perplexity_search": "Researching...",
     # Time
     "get_current_time": "Checking the time...",
 }

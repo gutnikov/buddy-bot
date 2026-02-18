@@ -4,8 +4,6 @@ import asyncio
 import logging
 import signal
 
-import httpx
-
 from buddy_bot.buffer import MessageBuffer
 from buddy_bot.config import get_settings
 from buddy_bot.executor import ClaudeExecutor
@@ -33,7 +31,6 @@ class BuddyBot:
             self._settings.history_db,
             max_chars=self._settings.history_max_chars,
         )
-        self._http_client = httpx.AsyncClient()
 
     def _get_buffer(self, chat_id: str) -> MessageBuffer:
         if chat_id not in self._buffers:
@@ -108,8 +105,6 @@ class BuddyBot:
             self._settings.telegram_token,
             self._settings.telegram_allowed_chat_ids,
             self.on_message,
-            http_client=self._http_client,
-            settings=self._settings,
         )
 
         # Create executor (needs the bot instance)
@@ -147,7 +142,6 @@ class BuddyBot:
         # Close clients
         if hasattr(self, "_executor"):
             await self._executor.close()
-        await self._http_client.aclose()
         self._history.close()
 
         logger.info("Shutdown complete")

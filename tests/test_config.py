@@ -33,8 +33,6 @@ def test_default_values():
     assert settings.debounce_delay == 5
     assert settings.user_timezone == "UTC"
     assert settings.graphiti_url == "http://graphiti-mcp:8000"
-    assert settings.tavily_api_key == ""
-    assert settings.google_credentials_path == "/app/credentials/google_credentials.json"
     assert settings.telegram_mode == "polling"
     assert settings.webhook_url == ""
     assert settings.webhook_port == 8443

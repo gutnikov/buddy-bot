@@ -12,7 +12,7 @@ def test_unknown_tool():
 
 
 def test_mcp_prefixed_tool():
-    assert format_tool_progress("mcp__buddy-bot-tools__todo_add") == "Adding task..."
+    assert format_tool_progress("mcp__buddy-bot-tools__get_current_time") == "Checking the time..."
 
 
 def test_mcp_prefixed_graphiti_tool():
@@ -24,9 +24,6 @@ def test_all_tools_have_messages():
     from buddy_bot.progress import TOOL_PROGRESS
     expected_tools = {
         "get_episodes", "search_memory_facts", "search_nodes", "add_memory",
-        "todo_add", "todo_list", "todo_complete", "todo_delete",
-        "calendar_list_events", "calendar_create_event", "calendar_delete_event",
-        "email_list_messages", "email_read_message", "email_send_message",
-        "web_search", "perplexity_search", "get_current_time",
+        "get_current_time",
     }
     assert set(TOOL_PROGRESS.keys()) == expected_tools

@@ -9,19 +9,15 @@ services:
     volumes:
       - bot_data:/data
       - claude_data:/root/.claude
-      - ./credentials:/app/credentials:ro
     environment:
       - GRAPHITI_URL=http://graphiti-mcp:8000
       - HISTORY_DB=/data/history.db
-      - GOOGLE_CREDENTIALS_PATH=/app/credentials/client_secret.json
       - MCP_CONFIG_PATH=/app/config/mcp-config.json
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
       - CLAUDE_TIMEOUT=${CLAUDE_TIMEOUT:-120}
       - HISTORY_TURNS=${HISTORY_TURNS:-20}
       - DEBOUNCE_DELAY=${DEBOUNCE_DELAY:-5}
       - USER_TIMEZONE=${USER_TIMEZONE:-UTC}
-      - SPEECHKIT_LANG=${SPEECHKIT_LANG:-ru-RU}
-      - MAX_VOICE_DURATION=${MAX_VOICE_DURATION:-30}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import os, signal; os.kill(1, 0)\" || exit 1"]
