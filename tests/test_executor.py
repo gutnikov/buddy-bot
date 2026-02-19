@@ -62,7 +62,7 @@ async def test_process_happy_path(components):
 
     stdout_data = _make_jsonl(
         {"type": "system", "session_id": "sess-123"},
-        {"type": "assistant", "message": {"content": [{"type": "text", "text": "thinking"}]}},
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": "Hi Alex! How are you?"}]}},
         {"type": "result", "result": "Hi Alex! How are you?"},
     )
 
@@ -71,7 +71,7 @@ async def test_process_happy_path(components):
     with patch("buddy_bot.executor.asyncio.create_subprocess_exec", return_value=mock_proc):
         await executor.process("123", events)
 
-    # Response sent to Telegram
+    # Response sent to Telegram (accumulated from assistant text blocks)
     bot.send_message.assert_called()
     call_args = bot.send_message.call_args
     assert "Hi Alex" in call_args.kwargs.get("text", call_args[1].get("text", ""))

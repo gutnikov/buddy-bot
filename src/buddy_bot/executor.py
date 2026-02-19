@@ -118,6 +118,7 @@ class ClaudeExecutor:
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd="/claude-workdir",
         )
 
         result_text = ""
@@ -162,6 +163,7 @@ class ClaudeExecutor:
         Returns (result_text, session_id).
         """
         result_text = ""
+        text_parts: list[str] = []
         session_id = None
 
         assert proc.stdout is not None
@@ -189,10 +191,11 @@ class ClaudeExecutor:
                 logger.debug("Claude session: %s", session_id)
 
             elif msg_type == "assistant":
-                # Track tool_use blocks for progress messages
                 message = msg.get("message", {})
                 for block in message.get("content", []):
-                    if block.get("type") == "tool_use":
+                    if block.get("type") == "text":
+                        text_parts.append(block.get("text", ""))
+                    elif block.get("type") == "tool_use":
                         tool_name = block.get("name", "")
                         progress_msg = format_tool_progress(tool_name)
                         if progress_msg:
@@ -200,11 +203,12 @@ class ClaudeExecutor:
 
             elif msg_type == "result":
                 result_text = msg.get("result", "")
-                # result can also have session_id
                 if not session_id:
                     session_id = msg.get("session_id")
 
-        return result_text, session_id
+        # Prefer accumulated text from all turns over result (which is last turn only)
+        full_text = "\n\n".join(t for t in text_parts if t.strip())
+        return full_text or result_text, session_id
 
     async def _resume_session(self, session_id: str) -> tuple[str, str | None]:
         """Resume a session with a nudge prompt."""
@@ -214,12 +218,16 @@ class ClaudeExecutor:
             "--output-format", "json",
             "--resume", session_id,
             "--model", self._settings.claude_model,
+            "--mcp-config", self._settings.mcp_config_path,
+            "--allowedTools", "mcp__*",
+            "--permission-mode", "bypassPermissions",
         ]
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd="/claude-workdir",
         )
 
         try:
@@ -258,6 +266,9 @@ class ClaudeExecutor:
 
         # Restrict to only MCP tools (no built-in file/bash tools)
         cmd.extend(["--allowedTools", "mcp__*"])
+
+        # Bypass permission prompts — headless bot, no one to click "Allow"
+        cmd.extend(["--permission-mode", "bypassPermissions"])
 
         return cmd
 

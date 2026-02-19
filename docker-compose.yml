@@ -8,7 +8,8 @@ services:
     env_file: .env
     volumes:
       - bot_data:/data
-      - claude_data:/root/.claude
+      - claude_data:/home/botuser/.claude
+      - ${HOME}/.claude/.credentials.json:/run/secrets/claude-credentials.json:ro
     environment:
       - GRAPHITI_URL=http://graphiti-mcp:8000
       - HISTORY_DB=/data/history.db
