@@ -131,10 +131,16 @@ def test_stdout_rules():
 
 
 def test_prompt_contains_progress_instructions():
-    """Prompt should mention notify_progress tool."""
+    """Prompt should instruct Claude to acknowledge first via notify_progress."""
     prompt = build_prompt(
         chat_id="123",
         history_turns=[],
         events=[{"text": "hello", "from": "alex", "timestamp": "t"}],
     )
     assert "notify_progress" in prompt
+    assert "ALWAYS" in prompt
+    assert "FIRST" in prompt
+    # Step 1 should be Acknowledge, before Retrieve context
+    ack_idx = prompt.index("Acknowledge")
+    retrieve_idx = prompt.index("Retrieve context")
+    assert ack_idx < retrieve_idx
