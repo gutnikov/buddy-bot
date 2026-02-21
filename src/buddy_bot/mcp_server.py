@@ -8,6 +8,8 @@ import json
 import logging
 import os
 from datetime import datetime
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from mcp.server import Server
@@ -20,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Configuration from environment
 # ---------------------------------------------------------------------------
 USER_TIMEZONE = os.environ.get("USER_TIMEZONE", "UTC")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 
 # ---------------------------------------------------------------------------
 # Tool definitions
@@ -33,6 +36,28 @@ TOOLS = [
             "properties": {
                 "timezone": {"type": "string", "default": "UTC"},
             },
+        },
+    ),
+    Tool(
+        name="notify_progress",
+        description=(
+            "Send a short progress message to the user's Telegram chat. "
+            "Use this to acknowledge receipt or signal progress during long operations. "
+            "Keep messages short (a few words). Don't overuse — 1-2 per interaction."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "chat_id": {
+                    "type": "string",
+                    "description": "The user's chat_id (provided in your prompt context).",
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Short progress message, e.g. 'On it!' or 'Almost done!'",
+                },
+            },
+            "required": ["chat_id", "message"],
         },
     ),
 ]
@@ -58,11 +83,37 @@ async def _handle_get_current_time(arguments: dict) -> str:
     })
 
 
+async def _handle_notify_progress(arguments: dict) -> str:
+    """Send a progress message to the user via Telegram Bot API."""
+    chat_id = arguments.get("chat_id", "")
+    message = arguments.get("message", "")
+
+    if not chat_id or not message:
+        return json.dumps({"error": "chat_id and message are required"})
+
+    token = TELEGRAM_TOKEN
+    if not token:
+        return json.dumps({"error": "TELEGRAM_TOKEN not configured"})
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = json.dumps({"chat_id": chat_id, "text": message}).encode()
+    req = Request(url, data=payload, headers={"Content-Type": "application/json"})
+
+    try:
+        with urlopen(req, timeout=10) as resp:
+            resp.read()
+        return json.dumps({"status": "sent"})
+    except (URLError, OSError) as exc:
+        logger.warning("notify_progress failed for chat %s: %s", chat_id, exc)
+        return json.dumps({"error": f"Failed to send: {exc}"})
+
+
 # ---------------------------------------------------------------------------
 # Dispatch table
 # ---------------------------------------------------------------------------
 HANDLERS: dict[str, object] = {
     "get_current_time": _handle_get_current_time,
+    "notify_progress": _handle_notify_progress,
 }
 
 # ---------------------------------------------------------------------------

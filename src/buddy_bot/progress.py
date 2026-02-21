@@ -9,6 +9,8 @@ TOOL_PROGRESS: dict[str, str] = {
     "add_memory": "Saving to memory...",
     # Time
     "get_current_time": "Checking the time...",
+    # Progress
+    "notify_progress": "Sending progress update...",
 }
 
 
