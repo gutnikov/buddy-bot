@@ -6,6 +6,7 @@ Telegram personal assistant powered by Claude Code CLI + Graphiti knowledge grap
 
 - Telegram bot (python-telegram-bot) → message buffer (debounce) → Claude CLI executor (`claude -p` subprocess)
 - MCP server (`python -m buddy_bot.mcp_server`) exposes tools to Claude via stdio — runs as subprocess, not imported by bot
+- MCP tools: `get_current_time`, `notify_progress` (sends Telegram messages directly via Bot API)
 - Graphiti MCP provides long-term memory (episodes, facts, entities)
 - Conversation history in SQLite (`/data/history.db`)
 
