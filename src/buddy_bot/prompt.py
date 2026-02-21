@@ -20,7 +20,14 @@ RESPONSE RULES:
 - Keep responses concise and conversational.
 - Use Telegram-compatible formatting (bold, italic, code) sparingly.
 - You MUST produce a text response for every interaction.
-- Do NOT use any file, bash, or code-editing tools. Only use MCP tools."""
+- Do NOT use any file, bash, or code-editing tools. Only use MCP tools.
+
+PROGRESS NOTIFICATIONS:
+- Call notify_progress(chat_id, message) to send the user a short status update.
+- Use it right after receiving a message to acknowledge ("On it!") and optionally
+  during long operations ("Searching my memory...").
+- Keep messages short — a few words. 1-2 progress messages per interaction is typical.
+- The chat_id is provided below in your context."""
 
 RETRIEVAL_INSTRUCTIONS = """Before responding, follow these steps IN ORDER:
 

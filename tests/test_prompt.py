@@ -128,3 +128,13 @@ def test_stdout_rules():
     )
     assert "stdout" in prompt.lower()
     assert "Telegram" in prompt
+
+
+def test_prompt_contains_progress_instructions():
+    """Prompt should mention notify_progress tool."""
+    prompt = build_prompt(
+        chat_id="123",
+        history_turns=[],
+        events=[{"text": "hello", "from": "alex", "timestamp": "t"}],
+    )
+    assert "notify_progress" in prompt
