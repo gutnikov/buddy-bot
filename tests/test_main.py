@@ -1,5 +1,6 @@
 """Tests for buddy_bot.main module."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from buddy_bot.config import Settings
@@ -64,6 +65,48 @@ async def test_shutdown_cleans_up(mock_get_settings, tmp_path):
     assert bot._shutdown_event.is_set()
     bot._executor.close.assert_called_once()
     bot._app.updater.stop.assert_called_once()
+
+
+@patch("buddy_bot.main.get_settings")
+async def test_typing_starts_during_debounce(mock_get_settings, tmp_path):
+    """Typing indicator should start before debounce completes."""
+    settings = Settings(**{
+        **REQUIRED_SETTINGS,
+        "history_db": str(tmp_path / "test.db"),
+        "debounce_delay": 1,
+    })
+    mock_get_settings.return_value = settings
+
+    from buddy_bot.main import BuddyBot
+
+    bot = BuddyBot()
+    bot._executor = AsyncMock()
+    bot._app = MagicMock()
+    bot._app.bot = AsyncMock()
+
+    typing_started = asyncio.Event()
+    original_start = None
+
+    async def capture_typing_start(self):
+        typing_started.set()
+        if original_start:
+            await original_start(self)
+
+    buf = bot._get_buffer("123")
+    buf.add({"text": "hello", "chat_id": "123", "from": "alex", "timestamp": "t"})
+
+    with patch("buddy_bot.main.TypingIndicator") as MockIndicator:
+        indicator_instance = AsyncMock()
+        indicator_instance.start = AsyncMock(side_effect=lambda: typing_started.set())
+        indicator_instance.stop = AsyncMock()
+        MockIndicator.return_value = indicator_instance
+
+        await bot._processing_loop("123")
+
+        # Typing indicator should have been created and started
+        MockIndicator.assert_called_once_with(bot._app.bot, "123")
+        indicator_instance.start.assert_called_once()
+        indicator_instance.stop.assert_called_once()
 
 
 @patch("buddy_bot.main.get_settings")

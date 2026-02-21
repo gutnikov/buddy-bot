@@ -8,6 +8,7 @@ from buddy_bot.buffer import MessageBuffer
 from buddy_bot.config import get_settings
 from buddy_bot.executor import ClaudeExecutor
 from buddy_bot.history import HistoryStore
+from buddy_bot.typing_indicator import TypingIndicator
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +53,16 @@ class BuddyBot:
             )
 
     async def _processing_loop(self, chat_id: str) -> None:
-        """State machine: IDLE → DEBOUNCE → DRAIN → PROCESS → CHECK BUFFER → IDLE."""
+        """State machine: IDLE → TYPING → DEBOUNCE → DRAIN → PROCESS → CHECK BUFFER → IDLE."""
         buf = self._get_buffer(chat_id)
         consecutive_failures = 0
+        early_typing = TypingIndicator(self._app.bot, chat_id)
 
         while not buf.is_empty() or not self._shutdown_event.is_set():
+            # Start typing early so user sees feedback during debounce
+            await early_typing.start()
             events = await buf.wait_and_drain()
+            await early_typing.stop()
             if not events:
                 break
 
