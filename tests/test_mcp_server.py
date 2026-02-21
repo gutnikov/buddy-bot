@@ -1,6 +1,8 @@
 """Tests for buddy_bot.mcp_server module."""
 
 import json
+from unittest.mock import MagicMock, patch
+from urllib.error import URLError
 
 import pytest
 
@@ -14,10 +16,12 @@ def mcp_env(monkeypatch):
 
 
 def test_tool_list():
-    """Only 1 tool should be defined."""
+    """Tools should include get_current_time and notify_progress."""
     from buddy_bot.mcp_server import TOOLS
-    assert len(TOOLS) == 1
-    assert TOOLS[0].name == "get_current_time"
+    assert len(TOOLS) == 2
+    names = [t.name for t in TOOLS]
+    assert "get_current_time" in names
+    assert "notify_progress" in names
 
 
 async def test_get_current_time():
@@ -56,7 +60,69 @@ async def test_call_tool_unknown():
 
 
 async def test_list_tools_returns_all():
-    """list_tools() returns 1 tool."""
+    """list_tools() returns 2 tools."""
     from buddy_bot.mcp_server import list_tools
     tools = await list_tools()
-    assert len(tools) == 1
+    assert len(tools) == 2
+
+
+async def test_notify_progress_success():
+    """notify_progress sends message via Telegram API and returns success."""
+    import buddy_bot.mcp_server as mod
+    from buddy_bot.mcp_server import _handle_notify_progress
+    mod.TELEGRAM_TOKEN = "fake-token"
+
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.read.return_value = b'{"ok":true}'
+    mock_response.__enter__ = MagicMock(return_value=mock_response)
+    mock_response.__exit__ = MagicMock(return_value=False)
+
+    with patch("buddy_bot.mcp_server.urlopen", return_value=mock_response) as mock_urlopen:
+        result = json.loads(await _handle_notify_progress({
+            "chat_id": "123",
+            "message": "On it!",
+        }))
+
+    assert result["status"] == "sent"
+    mock_urlopen.assert_called_once()
+    req = mock_urlopen.call_args[0][0]
+    assert "api.telegram.org" in req.full_url
+    assert b"On it!" in req.data
+
+
+async def test_notify_progress_missing_token():
+    """notify_progress returns error when TELEGRAM_TOKEN is not set."""
+    import buddy_bot.mcp_server as mod
+    from buddy_bot.mcp_server import _handle_notify_progress
+    mod.TELEGRAM_TOKEN = ""
+
+    result = json.loads(await _handle_notify_progress({
+        "chat_id": "123",
+        "message": "Hello",
+    }))
+    assert "error" in result
+
+
+async def test_notify_progress_missing_params():
+    """notify_progress returns error for missing required params."""
+    import buddy_bot.mcp_server as mod
+    from buddy_bot.mcp_server import _handle_notify_progress
+    mod.TELEGRAM_TOKEN = "fake-token"
+
+    result = json.loads(await _handle_notify_progress({}))
+    assert "error" in result
+
+
+async def test_notify_progress_http_failure():
+    """notify_progress returns error on HTTP failure."""
+    import buddy_bot.mcp_server as mod
+    from buddy_bot.mcp_server import _handle_notify_progress
+    mod.TELEGRAM_TOKEN = "fake-token"
+
+    with patch("buddy_bot.mcp_server.urlopen", side_effect=URLError("fail")):
+        result = json.loads(await _handle_notify_progress({
+            "chat_id": "123",
+            "message": "test",
+        }))
+    assert "error" in result
