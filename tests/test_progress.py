@@ -24,6 +24,6 @@ def test_all_tools_have_messages():
     from buddy_bot.progress import TOOL_PROGRESS
     expected_tools = {
         "get_episodes", "search_memory_facts", "search_nodes", "add_memory",
-        "get_current_time",
+        "get_current_time", "notify_progress",
     }
     assert set(TOOL_PROGRESS.keys()) == expected_tools
